@@ -1,0 +1,8 @@
+; Test pipeline to say hello
+
+pipeline Test
+  use y
+  read z "your name"
+begin
+  y = (echo Hello $z)
+end y

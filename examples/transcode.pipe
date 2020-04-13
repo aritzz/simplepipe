@@ -1,0 +1,12 @@
+; Transcoder pipeline
+; This pipeline transcodes wav files into mp3
+
+pipeline Transcoder
+  read wavfile "wav input filename"
+  read mp3file "mp3 output filename"
+  rand tmpfile
+begin
+  (cp /Users/aritz/Downloads/$wavfile $tmpfile)
+  (ffmpeg -i $tmpfile $mp3file)
+  (rm -f $tmpfile)
+end mp3file
