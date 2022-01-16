@@ -16,12 +16,14 @@
 
 package data
 
-import("time")
+import (
+	"time"
+)
 
 const (
-    TYPE_ASSIGN ExecutionType = iota
-    TYPE_EXECASSIGN
-    TYPE_EXEC
+	TYPE_ASSIGN ExecutionType = iota
+	TYPE_EXECASSIGN
+	TYPE_EXEC
 )
 
 type ExecutionType int
@@ -31,27 +33,27 @@ type ExecutionType int
 //
 
 type Pipeline struct {
-  Name string
-  Input []PipelineInput
-  Declaration map[string]string
-  Output PipelineOutput
-  Execution []PipelineExecution
+	Name        string
+	Input       []PipelineInput
+	Declaration map[string]string
+	Output      PipelineOutput
+	Execution   []PipelineExecution
 }
 
 type PipelineInput struct {
-  Name string
-  Value string
+	Name  string
+	Value string
 }
 
 type PipelineExecution struct {
-  Type ExecutionType
-  Command string
-  Output string
+	Type    ExecutionType
+	Command string
+	Output  string
 }
 
 type PipelineOutput struct {
-  Defined bool
-  Value string
+	Defined bool
+	Value   string
 }
 
 //
@@ -59,14 +61,14 @@ type PipelineOutput struct {
 //
 
 type PipelineResult struct {
-  Variables map[string]string
-  Time time.Duration
-  ExecStep []PipelineResultExecStep
-  Output string
+	Variables map[string]string
+	Time      time.Duration
+	ExecStep  []PipelineResultExecStep
+	Output    string
 }
 
 type PipelineResultExecStep struct {
-  Command string
-  Error string
-  ExecTime time.Duration
+	Command  string
+	Error    string
+	ExecTime time.Duration
 }

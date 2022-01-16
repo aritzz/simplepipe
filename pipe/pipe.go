@@ -14,227 +14,222 @@
 // You should have received a copy of the GNU General Public License
 // along with Simplepipe.  If not, see <https://www.gnu.org/licenses/>.
 
-
 package pipe
 
-import(
-  "github.com/aritzz/simplepipe/data"
-  "os"
-  "log"
-  "strings"
-  "errors"
-  "time"
+import (
+	"errors"
+	"log"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/aritzz/simplepipe/data"
 )
 
 var loggerfile *os.File
 
-// Loads an slice of inputs to a pipeline data object
+// LoadInput Loads an slice of inputs to a pipeline data object
 func LoadInput(pipeline *data.Pipeline, input []string) {
 
-  for i, _ := range pipeline.Input {
-    if i > len(input) {
-      break
-    }
+	for i, _ := range pipeline.Input {
+		if i > len(input) {
+			break
+		}
 
-    pipeline.Input[i].Value = input[i]
-  }
-
+		pipeline.Input[i].Value = input[i]
+	}
 
 }
 
-// Executes a pipeline
+// ExecutePipeline Executes a pipeline
 func ExecutePipeline(pipeline data.Pipeline, logredirect string) (data.PipelineResult, error) {
-  var pipeline_ret data.PipelineResult
-  var err_ret error
+	var pipeline_ret data.PipelineResult
+	var err_ret error
 
-  // Exec time
-  start_time := time.Now()
+	// Exec time
+	start_time := time.Now()
 
-  // Enable logging if needed
-  if len(strings.TrimSpace(logredirect)) > 0 {
-    if err := setLogRedirection(logredirect); err != nil {
-      return pipeline_ret, err
-    }
-    defer loggerfile.Close()
-  }
+	// Enable logging if needed
+	if len(strings.TrimSpace(logredirect)) > 0 {
+		if err := setLogRedirection(logredirect); err != nil {
+			return pipeline_ret, err
+		}
+		defer loggerfile.Close()
+	}
 
-  log.Println("Starting pipeline "+pipeline.Name)
+	log.Println("Starting pipeline " + pipeline.Name)
 
-  // Do execution
-  pipeline_ret = initVariables(pipeline)
-  for i, execItem := range pipeline.Execution {
-    log.Println("Running [", execItem.Command,"]")
-    pipeline_ret, err_ret = execStep(execItem, pipeline_ret, i)
-    if err_ret == nil {
-      log.Println("Finished in ", pipeline_ret.ExecStep[i].ExecTime)
-    } else {
-      log.Println("Execution error ", err_ret.Error())
-      break
-    }
+	// Do execution
+	pipeline_ret = initVariables(pipeline)
+	for i, execItem := range pipeline.Execution {
+		log.Println("Running [", execItem.Command, "]")
+		pipeline_ret, err_ret = execStep(execItem, pipeline_ret, i)
+		if err_ret == nil {
+			log.Println("Finished in ", pipeline_ret.ExecStep[i].ExecTime)
+		} else {
+			log.Println("Execution error ", err_ret.Error())
+			break
+		}
 
-  }
+	}
 
-  if err_ret == nil {
-    pipeline_ret, err_ret = getPipelineOutput(pipeline_ret, pipeline)
-  }
+	if err_ret == nil {
+		pipeline_ret, err_ret = getPipelineOutput(pipeline_ret, pipeline)
+	}
 
-  pipeline_ret.Time = time.Since(start_time)
-  log.Println("Pipeline execution time", pipeline_ret.Time)
-  return pipeline_ret, err_ret
+	pipeline_ret.Time = time.Since(start_time)
+	log.Println("Pipeline execution time", pipeline_ret.Time)
+	return pipeline_ret, err_ret
 }
 
+// execStep Execute step in pipeline
 func execStep(execstep data.PipelineExecution, prevresult data.PipelineResult, i int) (data.PipelineResult, error) {
-  var err_ret error
-  pipeline_ret := prevresult
+	var err_ret error
+	pipeline_ret := prevresult
 
-  switch execstep.Type {
-  case data.TYPE_ASSIGN:
-    return execStepAssign(execstep, prevresult, i)
-  case data.TYPE_EXECASSIGN:
-    return execStepExecAssign(execstep, prevresult, i)
-  case data.TYPE_EXEC:
-    return execStepExec(execstep, prevresult, i)
-  }
+	switch execstep.Type {
+	case data.TYPE_ASSIGN:
+		return execStepAssign(execstep, prevresult, i)
+	case data.TYPE_EXECASSIGN:
+		return execStepExecAssign(execstep, prevresult, i)
+	case data.TYPE_EXEC:
+		return execStepExec(execstep, prevresult, i)
+	}
 
-
-  return pipeline_ret, err_ret
+	return pipeline_ret, err_ret
 }
 
+// execStepAssign Execute step assignation
 func execStepAssign(execstep data.PipelineExecution, prevresult data.PipelineResult, i int) (data.PipelineResult, error) {
-  var err error
-  retresult := prevresult
+	var err error
+	retresult := prevresult
 
-  // Exec time
-  start_time := time.Now()
+	// Exec time
+	start_time := time.Now()
 
-  // Get var
-  varcontent, err := getVarValue(prevresult, execstep.Command)
-  if err != nil {
-    goto stepEnd
-  }
+	// Get var
+	varcontent, err := getVarValue(prevresult, execstep.Command)
+	if err != nil {
+		goto stepEnd
+	}
 
-  // Assign
-  err = setVarValue(&retresult, execstep.Output, varcontent)
-  if err != nil {
-    goto stepEnd
-  }
+	// Assign
+	err = setVarValue(&retresult, execstep.Output, varcontent)
+	if err != nil {
+		goto stepEnd
+	}
 
-  stepEnd:
-  retresult.ExecStep[i].ExecTime = time.Since(start_time)
-  retresult.ExecStep[i].Command = varcontent
-  if err != nil {
-    retresult.ExecStep[i].Error = err.Error()
-  }
-  return retresult, err
+stepEnd:
+	retresult.ExecStep[i].ExecTime = time.Since(start_time)
+	retresult.ExecStep[i].Command = varcontent
+	if err != nil {
+		retresult.ExecStep[i].Error = err.Error()
+	}
+	return retresult, err
 }
 
 func execStepExecAssign(execstep data.PipelineExecution, prevresult data.PipelineResult, i int) (data.PipelineResult, error) {
-  var err error
-  retresult := prevresult
+	var err error
+	retresult := prevresult
 
-  // Exec time
-  start_time := time.Now()
+	// Exec time
+	start_time := time.Now()
 
-  // Replace values
-  commandexec := cmdReplaceVars(prevresult, execstep.Command)
+	// Replace values
+	commandexec := cmdReplaceVars(prevresult, execstep.Command)
 
-  // Execute command
-  strOut, err :=  execCommandOutput(commandexec)
-  if err != nil {
-    goto execEnd
-  }
+	// Execute command
+	strOut, err := execCommandOutput(commandexec)
+	if err != nil {
+		goto execEnd
+	}
 
-  // Assign
-  err = setVarValue(&retresult, execstep.Output, strOut)
-  if err != nil {
-    goto execEnd
-  }
+	// Assign
+	err = setVarValue(&retresult, execstep.Output, strOut)
+	if err != nil {
+		goto execEnd
+	}
 
+execEnd:
+	retresult.ExecStep[i].ExecTime = time.Since(start_time)
+	retresult.ExecStep[i].Command = commandexec
+	if err != nil {
+		retresult.ExecStep[i].Error = err.Error()
+	}
 
-
-  execEnd:
-  retresult.ExecStep[i].ExecTime = time.Since(start_time)
-  retresult.ExecStep[i].Command = commandexec
-  if err != nil {
-    retresult.ExecStep[i].Error = err.Error()
-  }
-
-  return retresult, err
+	return retresult, err
 }
 
 func execStepExec(execstep data.PipelineExecution, prevresult data.PipelineResult, i int) (data.PipelineResult, error) {
-  var err error
-  retresult := prevresult
+	var err error
+	retresult := prevresult
 
-  // Exec time
-  start_time := time.Now()
+	// Exec time
+	start_time := time.Now()
 
-  // Replace values
-  commandexec := cmdReplaceVars(prevresult, execstep.Command)
+	// Replace values
+	commandexec := cmdReplaceVars(prevresult, execstep.Command)
 
-  // Execute command
-  err = execCommand(commandexec)
-  if err != nil {
-    goto execEnd
-  }
+	// Execute command
+	err = execCommand(commandexec)
+	if err != nil {
+		goto execEnd
+	}
 
+execEnd:
+	retresult.ExecStep[i].ExecTime = time.Since(start_time)
+	retresult.ExecStep[i].Command = commandexec
+	if err != nil {
+		retresult.ExecStep[i].Error = err.Error()
+	}
 
-  execEnd:
-  retresult.ExecStep[i].ExecTime = time.Since(start_time)
-  retresult.ExecStep[i].Command = commandexec
-  if err != nil {
-    retresult.ExecStep[i].Error = err.Error()
-  }
-
-  return retresult, err
+	return retresult, err
 }
 
 func getPipelineOutput(piperesult data.PipelineResult, pipeline data.Pipeline) (data.PipelineResult, error) {
-  ret_pipe := piperesult
-  var err error
+	ret_pipe := piperesult
+	var err error
 
-  if !pipeline.Output.Defined {
-    return ret_pipe, err
-  }
+	if !pipeline.Output.Defined {
+		return ret_pipe, err
+	}
 
-  if val, ok := piperesult.Variables[pipeline.Output.Value]; ok {
-    ret_pipe.Output = val
-    return ret_pipe, err
-  }
+	if val, ok := piperesult.Variables[pipeline.Output.Value]; ok {
+		ret_pipe.Output = val
+		return ret_pipe, err
+	}
 
-  return ret_pipe, errors.New("Return variable not found")
+	return ret_pipe, errors.New("return variable not found")
 }
 
+func initVariables(pipeline data.Pipeline) data.PipelineResult {
+	pipeline_ret := data.PipelineResult{}
+	pipeline_ret.Variables = make(map[string]string)
 
-func initVariables(pipeline data.Pipeline) (data.PipelineResult) {
-  pipeline_ret := data.PipelineResult{}
-  pipeline_ret.Variables = make(map[string]string)
+	for _, val := range pipeline.Input {
+		pipeline_ret.Variables[val.Name] = val.Value
+	}
 
-  for _, val := range pipeline.Input {
-    pipeline_ret.Variables[val.Name] = val.Value
-  }
+	for key, val := range pipeline.Declaration {
+		pipeline_ret.Variables[key] = val
+	}
 
-  for key, val := range pipeline.Declaration {
-    pipeline_ret.Variables[key] = val
-  }
+	for i := 0; i < len(pipeline.Execution); i++ {
+		stepnew := data.PipelineResultExecStep{}
+		pipeline_ret.ExecStep = append(pipeline_ret.ExecStep, stepnew)
+	}
 
-  for i := 0; i < len(pipeline.Execution); i++ {
-    stepnew := data.PipelineResultExecStep{}
-    pipeline_ret.ExecStep = append(pipeline_ret.ExecStep, stepnew)
-  }
-
-  return pipeline_ret
+	return pipeline_ret
 }
 
+func setLogRedirection(filename string) error {
+	var err error
+	loggerfile, err = os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0766)
+	if err != nil {
+		return err
+	}
 
-func setLogRedirection(filename string) (error) {
-  var err error
-  loggerfile, err = os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0766)
-  if err != nil {
-    return err
-  }
+	log.SetOutput(loggerfile)
 
-  log.SetOutput(loggerfile)
-
-  return err
+	return err
 }

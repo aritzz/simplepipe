@@ -16,21 +16,20 @@
 
 package main
 
-import(
-  // "github.com/aritzz/simplepipe/load"
-  "github.com/aritzz/simplepipe/data"
-  // "github.com/aritzz/simplepipe/pipe"
-  "fmt"
-  // "flag"
+import (
+	"fmt"
+
+	"github.com/aritzz/simplepipe/data"
 )
 
-
+// printExectimeGlobal Print global execution time from pipeline
 func printExectimeGlobal(pipeline data.PipelineResult) {
-  fmt.Println("Execution time:",pipeline.Time)
+	fmt.Println("Execution time:", pipeline.Time)
 }
 
+// printExectimeFunction Print function execution time from pipeline
 func printExectimeFunction(pipeline data.PipelineResult) {
-  for _, el := range pipeline.ExecStep {
-    fmt.Println("Command [",el.Command,"] - Time [",el.ExecTime,"]")
-  }
+	for _, el := range pipeline.ExecStep {
+		fmt.Println("Command [", el.Command, "] - Time [", el.ExecTime, "]")
+	}
 }
